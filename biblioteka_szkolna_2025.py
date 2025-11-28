@@ -61,7 +61,16 @@ def ekran_logowania():
     login_win.mainloop()
 
 # =============================================
-# GŁÓWNA APLIKACJA - POPRAWIONA
+# FUNKCJA WYLOGOWANIA
+# =============================================
+def wyloguj():
+    """Zamyka aplikację główną i wraca do ekranu logowania"""
+    if messagebox.askyesno("Wylogowanie", "Czy na pewno chcesz się wylogować?"):
+        root.destroy()
+        ekran_logowania()
+
+# =============================================
+# GŁÓWNA APLIKACJA - WYLOGUJ POD WYPOŻYCZ
 # =============================================
 def uruchom_aplikacje():
     # DANE TESTOWE - ZAWSZE DZIAŁAJĄ
@@ -101,6 +110,8 @@ def uruchom_aplikacje():
         odswiez_tabele()
         aktywne_lbl.config(text=len(wypozyczenia))
         przetrzymane_lbl.config(text=sum(1 for w in wypozyczenia if (date.today() - w["do_kiedy"]).days > 0))
+        odswiez_liste_klientow()
+        odswiez_liste_ksiazek()
 
     def odswiez_tabele():
         for i in tree.get_children():
@@ -120,6 +131,18 @@ def uruchom_aplikacje():
 
     def update_zwrot():
         zwrot_cb["values"] = [f"{w['uczen']} → {w['ksiazka']} (do {w['do_kiedy'].strftime('%d.%m.%Y')})" for w in wypozyczenia]
+
+    def odswiez_liste_klientow():
+        for i in tree_klientow.get_children():
+            tree_klientow.delete(i)
+        for klient in sorted(klienci):
+            tree_klientow.insert("", "end", values=(klient,))
+
+    def odswiez_liste_ksiazek():
+        for i in tree_ksiazek.get_children():
+            tree_ksiazek.delete(i)
+        for ksiazka in sorted(wszystkie_ksiazki):
+            tree_ksiazek.insert("", "end", values=(ksiazka,))
 
     def dodaj_ucznia():
         imie = simpledialog.askstring("Nowy uczeń", "Podaj imię i nazwisko:")
@@ -185,9 +208,10 @@ def uruchom_aplikacje():
         os.startfile(plik)
 
     # === OKNO GŁÓWNE ===
+    global root
     root = tk.Tk()
     root.title("Biblioteka Szkolna 2025")
-    root.geometry("1400x800")
+    root.geometry("1600x850")
     root.configure(bg="#f4f6f9")
 
     main_container = tk.Frame(root, bg="#f4f6f9")
@@ -224,7 +248,7 @@ def uruchom_aplikacje():
         clock_label.config(text=now)
         root.after(1000, clock)
     clock_label = tk.Label(header, font=("Consolas", 16, "bold"), fg="white", bg="#667eea")
-    clock_label.place(x=1100, y=70)
+    clock_label.place(x=1250, y=70)
     clock()
 
     # === STATYSTYKI ===
@@ -236,6 +260,26 @@ def uruchom_aplikacje():
     tk.Label(stats_frame, text=" | Przetrzymane:", font=("Segoe UI", 18, "bold"), bg="#f4f6f9").grid(row=0, column=2, padx=40)
     przetrzymane_lbl = tk.Label(stats_frame, text="0", font=("Segoe UI", 48, "bold"), fg="#e74c3c", bg="#f4f6f9")
     przetrzymane_lbl.grid(row=0, column=3)
+
+    # === LEWY PANELE Z LISTAMI ===
+    left_panel = tk.Frame(scrollable_frame, bg="#f4f6f9")
+    left_panel.pack(side="left", padx=20, pady=20, fill="y")
+
+    klienci_frame = tk.LabelFrame(left_panel, text="👥 Lista wszystkich klientów", font=("Segoe UI", 12, "bold"), bg="white", fg="#2c3e50")
+    klienci_frame.pack(fill="both", expand=True, pady=(0, 15))
+
+    tree_klientow = ttk.Treeview(klienci_frame, columns=("klient",), show="headings", height=6)
+    tree_klientow.heading("klient", text="Imię i nazwisko")
+    tree_klientow.column("klient", width=220)
+    tree_klientow.pack(padx=10, pady=10, fill="both", expand=True)
+
+    ksiazki_frame = tk.LabelFrame(left_panel, text="📚 Lista wszystkich książek", font=("Segoe UI", 12, "bold"), bg="white", fg="#2c3e50")
+    ksiazki_frame.pack(fill="both", expand=True)
+
+    tree_ksiazek = ttk.Treeview(ksiazki_frame, columns=("ksiazka",), show="headings", height=6)
+    tree_ksiazek.heading("ksiazka", text="Tytuł (numer inwentarza)")
+    tree_ksiazek.column("ksiazka", width=220)
+    tree_ksiazek.pack(padx=10, pady=10, fill="both", expand=True)
 
     # === DODAWANIE ===
     add_frame = tk.Frame(scrollable_frame, bg="#f4f6f9")
@@ -251,7 +295,7 @@ def uruchom_aplikacje():
     tk.Entry(search_frame, textvariable=search_var, font=("Segoe UI", 14), width=50).pack(side="left", padx=10)
 
     # === TABELA ===
-    tree_frame = tk.LabelFrame(scrollable_frame, text=" Aktualnie wypożyczone książki ", font=("Segoe UI", 16, "bold"), bg="white", fg="#2c3e50")
+    tree_frame = tk.LabelFrame(scrollable_frame, text=" 📋 Aktualnie wypożyczone książki ", font=("Segoe UI", 16, "bold"), bg="white", fg="#2c3e50")
     tree_frame.pack(padx=40, pady=15, fill="both", expand=True)
 
     tree = ttk.Treeview(tree_frame, columns=("uczen","ksiazka","do","dni","kara"), show="headings")
@@ -262,34 +306,57 @@ def uruchom_aplikacje():
     tree.pack(padx=30, pady=25, fill="both", expand=True)
     tree.tag_configure("przetrzymane", background="#ff6b6b", foreground="white", font=("Segoe UI", 11, "bold"))
 
-    # === AKCJE ===
-    action_frame = tk.Frame(scrollable_frame, bg="#f4f6f9")
-    action_frame.pack(pady=40)
+    # === PRZYCISKI - WYLOGUJ POD WYPOŻYCZ ===
+    buttons_frame = tk.Frame(scrollable_frame, bg="#f4f6f9")
+    buttons_frame.pack(pady=40)
 
-    tk.Label(action_frame, text="Wypożycz:", font=("Segoe UI", 17, "bold"), bg="#f4f6f9").grid(row=0, column=0, padx=30, sticky="e")
-    uczen_cb = ttk.Combobox(action_frame, values=klienci, state="readonly", width=35, font=("Segoe UI", 13))
-    uczen_cb.grid(row=0, column=1, padx=(0, 20))
-    ksiazka_cb = ttk.Combobox(action_frame, state="readonly", width=70, font=("Segoe UI", 13))
-    ksiazka_cb.grid(row=0, column=2, padx=(0, 40))
+    # Combobox'y
+    uczen_frame = tk.Frame(buttons_frame, bg="#f4f6f9")
+    uczen_frame.pack(side="left", padx=(0, 20))
+    tk.Label(uczen_frame, text="Wypożycz:", font=("Segoe UI", 14, "bold"), bg="#f4f6f9").pack()
+    uczen_cb = ttk.Combobox(uczen_frame, values=klienci, state="readonly", width=35, font=("Segoe UI", 13))
+    uczen_cb.pack(pady=(5, 0))
 
-    btn_wypozycz = tk.Button(action_frame, text="WYPOŻYCZ", bg="#27ae60", fg="white", 
-                             font=("Segoe UI", 15, "bold"), width=12, height=1, 
+    ksiazka_frame = tk.Frame(buttons_frame, bg="#f4f6f9")
+    ksiazka_frame.pack(side="left", padx=(0, 30))
+    tk.Label(ksiazka_frame, text="Książka:", font=("Segoe UI", 14, "bold"), bg="#f4f6f9").pack()
+    ksiazka_cb = ttk.Combobox(ksiazka_frame, state="readonly", width=60, font=("Segoe UI", 13))
+    ksiazka_cb.pack(pady=(5, 0))
+
+    # LEWA KOLUMNA: WYPOŻYCZ + WYLOGUJ POD NIM
+    left_buttons = tk.Frame(buttons_frame, bg="#f4f6f9")
+    left_buttons.pack(side="left", padx=10)
+
+    btn_wypozycz = tk.Button(left_buttons, text="✅\nWYPOŻYCZ", bg="#27ae60", fg="white", 
+                             font=("Segoe UI", 14, "bold"), width=12, height=2, 
                              relief="raised", bd=6, command=wypozycz)
-    btn_wypozycz.grid(row=0, column=3, padx=8)
+    btn_wypozycz.pack(pady=5)
 
-    tk.Label(action_frame, text="Zwrot:    ", font=("Segoe UI", 17, "bold"), bg="#f4f6f9").grid(row=1, column=0, padx=30, pady=(50,0), sticky="e")
-    zwrot_cb = ttk.Combobox(action_frame, state="readonly", width=95, font=("Segoe UI", 13))
-    zwrot_cb.grid(row=1, column=1, columnspan=2, pady=(50,0), padx=(0, 40))
+    btn_wyloguj = tk.Button(left_buttons, text="🚪\nWYLOGUJ", bg="#f39c12", fg="white", 
+                           font=("Segoe UI", 14, "bold"), width=12, height=2, 
+                           relief="raised", bd=6, command=wyloguj)
+    btn_wyloguj.pack(pady=5)
 
-    btn_oddaj = tk.Button(action_frame, text="ODDAJ", bg="#e74c3c", fg="white", 
-                          font=("Segoe UI", 15, "bold"), width=12, height=1, 
+    # PRAWA KOLUMNA: ODDAJ
+    right_buttons = tk.Frame(buttons_frame, bg="#f4f6f9")
+    right_buttons.pack(side="left", padx=20)
+
+    # Combobox zwrot
+    zwrot_frame = tk.Frame(right_buttons, bg="#f4f6f9")
+    zwrot_frame.pack(pady=(0, 10))
+    tk.Label(zwrot_frame, text="Zwrot:", font=("Segoe UI", 14, "bold"), bg="#f4f6f9").pack()
+    zwrot_cb = ttk.Combobox(zwrot_frame, state="readonly", width=70, font=("Segoe UI", 13))
+    zwrot_cb.pack(pady=(5, 0))
+
+    btn_oddaj = tk.Button(right_buttons, text="🔄\nODDAJ", bg="#e74c3c", fg="white", 
+                          font=("Segoe UI", 14, "bold"), width=12, height=2, 
                           relief="raised", bd=6, command=oddaj)
-    btn_oddaj.grid(row=1, column=3, padx=8, pady=(50,0))
+    btn_oddaj.pack(pady=5)
 
     # === PDF ===
     pdf_frame = tk.Frame(scrollable_frame, bg="#f4f6f9")
     pdf_frame.pack(pady=40)
-    tk.Button(pdf_frame, text="EKSPORTUJ DO PDF", bg="#9b59b6", fg="white", font=("Segoe UI", 16, "bold"), relief="raised", bd=10, command=eksport_pdf).pack()
+    tk.Button(pdf_frame, text="📄 EKSPORTUJ DO PDF", bg="#9b59b6", fg="white", font=("Segoe UI", 16, "bold"), relief="raised", bd=10, command=eksport_pdf).pack()
 
     # === START ===
     search_var.trace("w", lambda *a: odswiez_tabele())
