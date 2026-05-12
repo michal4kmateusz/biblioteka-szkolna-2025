@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartLib • Biblioteka Szkolna 2025</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <style>
+    body { font-family: 'Segoe UI', system-ui, sans-serif; }
+    .glass { background: rgba(255,255,255,0.1); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.2); }
+    .card { transition: all 0.3s ease; }
+    .card:hover { transform: translateY(-5px); }
+    .overdue { background-color: #fee2e2 !important; color: #b91c1c; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+<!-- LOGOWANIE -->
+<div id="login-screen" class="fixed inset-0 bg-gradient-to-br from-indigo-700 to-purple-700 flex items-center justify-center z-50">
+  <div class="bg-white/10 backdrop-blur-xl p-10 rounded-3xl shadow-2xl w-96 border border-white/20">
+    <h1 class="text-4xl font-bold text-center text-white mb-2">BIBLIOTEKA SZKOLNA</h1>
+    <p class="text-center text-indigo-200 mb-10">System zarządzania wypożyczeniami</p>
+    
+    <input id="login-input" type="text" placeholder="Login" 
+           class="w-full p-4 rounded-2xl bg-white/10 border border-white/30 text-white placeholder:text-indigo-200 focus:outline-none focus:border-white mb-4">
+    <input id="password-input" type="password" placeholder="Hasło" 
+           class="w-full p-4 rounded-2xl bg-white/10 border border-white/30 text-white placeholder:text-indigo-200 focus:outline-none focus:border-white mb-8">
+    
+    <button onclick="login()" 
+            class="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-lg rounded-2xl transition">
+      ZATWIERDŹ
+    </button>
+  </div>
+</div>
+
+<!-- GŁÓWNA APLIKACJA -->
+<div id="main-app" class="hidden flex h-screen">
+
+  <!-- SIDEBAR -->
+  <div class="w-80 glass border-r border-slate-700 flex flex-col">
+    <div class="p-6 border-b border-slate-700">
+      <h1 class="text-3xl font-bold">SmartLib</h1>
+      <p class="text-slate-400">Biblioteka Szkolna 2025</p>
+    </div>
+    
+    <div class="p-6">
+      <div class="flex gap-2 bg-slate-800 p-1 rounded-3xl">
+        <button onclick="setRole(0)" id="role-lib" class="flex-1 py-3 rounded-3xl font-medium">Bibliotekarz</button>
+        <button onclick="setRole(1)" id="role-student" class="flex-1 py-3 rounded-3xl font-medium">Uczeń</button>
+      </div>
+    </div>
+
+    <div class="px-6 space-y-6 flex-1 overflow-auto">
+      <!-- Lista uczniów -->
+      <div>
+        <h3 class="text-lg font-semibold mb-3 flex items-center gap-2"><i class="fas fa-users"></i> Uczniowie</h3>
+        <div id="students-list" class="max-h-52 overflow-auto bg-slate-900/50 rounded-2xl p-3"></div>
+      </div>
+      
+      <!-- Lista książek -->
+      <div>
+        <h3 class="text-lg font-semibold mb-3 flex items-center gap-2"><i class="fas fa-book"></i> Książki</h3>
+        <div id="books-list" class="max-h-52 overflow-auto bg-slate-900/50 rounded-2xl p-3"></div>
+      </div>
+    </div>
+
+    <div class="p-6 border-t border-slate-700">
+      <button onclick="logout()" class="w-full py-3 bg-red-600 hover:bg-red-700 rounded-2xl font-medium">
+        Wyloguj się
+      </button>
+    </div>
+  </div>
+
+  <!-- GŁÓWNY PANEL -->
+  <div class="flex-1 overflow-auto">
+    <!-- Nagłówek -->
+    <div class="glass border-b border-slate-700 px-8 py-5 flex justify-between items-center">
+      <div>
+        <h1 id="header-title" class="text-3xl font-bold">Panel Bibliotekarza</h1>
+        <p id="current-time" class="text-slate-400"></p>
+      </div>
+      <button onclick="exportPDF()" class="flex items-center gap-3 bg-violet-600 hover:bg-violet-700 px-6 py-3 rounded-2xl">
+        <i class="fas fa-file-pdf"></i> Eksport PDF
+      </button>
+    </div>
+
+    <div class="p-8">
+      <!-- Statystyki -->
+      <div class="grid grid-cols-4 gap-6 mb-10">
+        <div class="glass rounded-3xl p-6 card">
+          <p class="text-slate-400">Aktywne wypożyczenia</p>
+          <p id="stat-active" class="text-5xl font-bold mt-2">12</p>
+        </div>
+        <div class="glass rounded-3xl p-6 card">
+          <p class="text-slate-400">Dostępne książki</p>
+          <p id="stat-available" class="text-5xl font-bold mt-2 text-emerald-400">87</p>
+        </div>
+        <div class="glass rounded-3xl p-6 card">
+          <p class="text-slate-400">Przeterminowane</p>
+          <p id="stat-overdue" class="text-5xl font-bold mt-2 text-red-500">5</p>
+        </div>
+        <div class="glass rounded-3xl p-6 card">
+          <p class="text-slate-400">Razem uczniów</p>
+          <p id="stat-students" class="text-5xl font-bold mt-2">164</p>
+        </div>
+      </div>
+
+      <!-- Wypożyczenie -->
+      <div class="glass rounded-3xl p-8 mb-8">
+        <h2 class="text-xl font-semibold mb-6">Nowe wypożyczenie</h2>
+        <div class="grid grid-cols-2 gap-8">
+          <div>
+            <label class="block text-sm mb-2">Uczeń</label>
+            <select id="select-student" class="w-full p-4 bg-slate-900 border border-slate-600 rounded-2xl"></select>
+          </div>
+          <div>
+            <label class="block text-sm mb-2">Książka</label>
+            <select id="select-book" class="w-full p-4 bg-slate-900 border border-slate-600 rounded-2xl"></select>
+          </div>
+        </div>
+        <button onclick="wypozycz()" class="mt-8 w-full bg-emerald-600 hover:bg-emerald-700 py-5 rounded-2xl font-bold text-lg">
+          WYPOŻYCZ KSIĄŻKĘ
+        </button>
+      </div>
+
+      <!-- Aktualne wypożyczenia -->
+      <div class="glass rounded-3xl p-8">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-2xl font-semibold">Aktualne wypożyczenia</h2>
+          <input id="search-input" type="text" placeholder="Szukaj..." 
+                 onkeyup="filterTable()" class="bg-slate-900 border border-slate-600 rounded-2xl px-5 py-3 w-80">
+        </div>
+        <table id="loans-table" class="w-full">
+          <thead>
+            <tr class="text-left border-b border-slate-700">
+              <th class="pb-4">Uczeń</th>
+              <th class="pb-4">Książka</th>
+              <th class="pb-4">Termin zwrotu</th>
+              <th class="pb-4">Dni po</th>
+              <th class="pb-4">Akcja</th>
+            </tr>
+          </thead>
+          <tbody id="table-body" class="text-slate-300"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Dane
+let students = ["Kowalski Jan", "Nowak Anna", "Wiśniewska Ola", "Zieliński Tomek", "Jankowska Maria"];
+let allBooks = ["Wiedźmin: Ostatnie życzenie (INV-005)", "Harry Potter i Kamień Filozoficzny (INV-007)", "Pan Tadeusz (INV-009)", "Solaris – Stanisław Lem (INV-003)", "Bieguni – Olga Tokarczuk (INV-004)"];
+let loans = [
+  {id:1, student:"Kowalski Jan", book:"Solaris – Stanisław Lem (INV-003)", due:"2026-05-01"},
+  {id:2, student:"Nowak Anna", book:"Bieguni – Olga Tokarczuk (INV-004)", due:"2026-05-20"},
+  {id:3, student:"Wiśniewska Ola", book:"Harry Potter i Kamień Filozoficzny (INV-007)", due:"2026-04-28"}
+];
+
+let currentRole = 0;
+
+// Logowanie
+function login() {
+  const loginVal = document.getElementById('login-input').value.trim();
+  const passVal = document.getElementById('password-input').value.trim();
+  if (loginVal && passVal) {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('main-app').classList.remove('hidden');
+    initApp();
+  } else {
+    alert("Wpisz login i hasło!");
+  }
+}
+
+// Inicjalizacja
+function initApp() {
+  updateTime();
+  setInterval(updateTime, 1000);
+  renderStudents();
+  renderBooks();
+  renderLoansTable();
+  populateSelects();
+}
+
+// Zegar
+function updateTime() {
+  document.getElementById('current-time').textContent = new Date().toLocaleString('pl-PL');
+}
+
+// Renderowanie list
+function renderStudents() {
+  const container = document.getElementById('students-list');
+  container.innerHTML = students.map(s => `<div class="p-3 hover:bg-slate-800 rounded-xl">${s}</div>`).join('');
+}
+
+function renderBooks() {
+  const container = document.getElementById('books-list');
+  container.innerHTML = allBooks.map(b => `<div class="p-3 hover:bg-slate-800 rounded-xl">${b}</div>`).join('');
+}
+
+function populateSelects() {
+  const studentSelect = document.getElementById('select-student');
+  studentSelect.innerHTML = '<option value="">Wybierz ucznia...</option>' + 
+    students.map(s => `<option>${s}</option>`).join('');
+
+  const bookSelect = document.getElementById('select-book');
+  const available = allBooks.filter(b => !loans.some(l => l.book === b));
+  bookSelect.innerHTML = '<option value="">Wybierz książkę...</option>' + 
+    available.map(b => `<option>${b}</option>`).join('');
+}
+
+// Wypożyczenie
+function wypozycz() {
+  const student = document.getElementById('select-student').value;
+  const book = document.getElementById('select-book').value;
+  
+  if (!student || !book) {
+    alert("Wybierz ucznia i książkę!");
+    return;
+  }
+
+  loans.push({
+    id: Date.now(),
+    student: student,
+    book: book,
+    due: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0]
+  });
+
+  alert(`Wypożyczono!\n${student} → ${book}`);
+  renderLoansTable();
+  populateSelects();
+}
+
+// Tabela wypożyczeń
+function renderLoansTable(filteredLoans = loans) {
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = filteredLoans.map(loan => {
+    const dueDate = new Date(loan.due);
+    const daysOver = Math.floor((new Date() - dueDate) / (1000*60*60*24));
+    const isOverdue = daysOver > 0;
+
+    return `
+      <tr class="border-b border-slate-700 hover:bg-slate-800/50 ${isOverdue ? 'overdue' : ''}">
+        <td class="py-4">${loan.student}</td>
+        <td class="py-4">${loan.book}</td>
+        <td class="py-4">${loan.due}</td>
+        <td class="py-4 font-medium ${isOverdue ? 'text-red-500' : ''}">${isOverdue ? daysOver : '0'}</td>
+        <td class="py-4">
+          <button onclick="returnBook(${loan.id})" class="text-emerald-400 hover:text-emerald-300 text-sm font-medium">
+            Zwróć
+          </button>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+function filterTable() {
+  const term = document.getElementById('search-input').value.toLowerCase();
+  const filtered = loans.filter(l => 
+    l.student.toLowerCase().includes(term) || l.book.toLowerCase().includes(term)
+  );
+  renderLoansTable(filtered);
+}
+
+function returnBook(id) {
+  if (confirm("Czy na pewno zwrócić tę książkę?")) {
+    loans = loans.filter(l => l.id !== id);
+    renderLoansTable();
+    populateSelects();
+  }
+}
+
+// Dodawanie ucznia / książki
+function addStudent() {
+  const name = prompt("Podaj imię i nazwisko ucznia:");
+  if (name && !students.includes(name)) {
+    students.push(name);
+    renderStudents();
+  }
+}
+
+function addBook() {
+  const title = prompt("Podaj tytuł i numer inwentarza:");
+  if (title && !allBooks.includes(title)) {
+    allBooks.push(title);
+    renderBooks();
+    populateSelects();
+  }
+}
+
+// Eksport PDF (symulacja)
+function exportPDF() {
+  alert("Raport PDF został wygenerowany i zapisany!\n(Funkcja w pełni działałaby z biblioteką jsPDF)");
+}
+
+// Role
+function setRole(role) {
+  currentRole = role;
+  document.getElementById('role-lib').classList.toggle('bg-indigo-600', role === 0);
+  document.getElementById('role-student').classList.toggle('bg-indigo-600', role === 1);
+  
+  document.getElementById('header-title').textContent = role === 0 ? 
+    "Panel Bibliotekarza" : "Panel Ucznia";
+}
+
+// Wylogowanie
+function logout() {
+  if (confirm("Czy na pewno chcesz się wylogować?")) {
+    location.reload();
+  }
+}
+
+// Start
+window.onload = () => {
+  // Możesz tu dodać automatyczne logowanie do testów
+  // document.getElementById('login-screen').classList.add('hidden');
+  // document.getElementById('main-app').classList.remove('hidden');
+  // initApp();
+};
+</script>
+</body>
+</html>
